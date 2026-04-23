@@ -144,6 +144,36 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama --version
 ```
 
+### Checking Ollama Version Information
+
+**Check your installed version:**
+```bash
+ollama --version
+# Output: ollama version is 0.21.0
+```
+
+**Find the latest available version:**
+```bash
+# Using GitHub API
+curl -s https://api.github.com/repos/ollama/ollama/releases/latest | grep '"tag_name"'
+
+# Or visit: https://github.com/ollama/ollama/releases
+```
+
+**Check when your installed version was released:**
+```bash
+# Get your current version
+CURRENT_VERSION=$(ollama --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+# Check release date
+curl -s https://api.github.com/repos/ollama/ollama/releases/tags/v${CURRENT_VERSION} | grep '"published_at"'
+```
+
+**Update Ollama:**
+- **macOS/Linux**: Download from https://ollama.com/download
+- **Homebrew**: `brew upgrade ollama`
+- **Windows**: Download latest installer from https://ollama.com/download/windows
+
 ### Starting Ollama
 
 **macOS/Linux:**
@@ -193,8 +223,94 @@ ollama rm llama2:13b
 # Check running models
 ollama ps
 
+# Stop a specific model (unload from memory)
+ollama stop llama2
+
+# Stop all running models
+ollama stop --all
+
 # Start Ollama server
 ollama serve
+```
+
+### Memory Management
+
+**Understanding Model Memory Usage:**
+
+When you run a model, it loads into RAM/VRAM and stays there for faster subsequent requests. By default, models remain loaded for 5 minutes after last use.
+
+**Check what's currently loaded:**
+```bash
+ollama ps
+# Shows: NAME, ID, SIZE, PROCESSOR, CONTEXT, UNTIL
+# Example output:
+# llama2:latest    78e26419b446    5.1 GB    100% GPU    4096    About a minute from now
+```
+
+**Stop/Unload Models:**
+
+```bash
+# Stop a specific model immediately
+ollama stop llama2:latest
+
+# Stop all running models
+ollama stop --all
+```
+
+**Configure Auto-Unload Behavior:**
+
+```bash
+# Set in your shell profile (~/.zshrc, ~/.bash_profile, or ~/.bashrc)
+
+# Unload immediately after use (saves memory)
+export OLLAMA_KEEP_ALIVE=0
+
+# Keep for 5 minutes (default)
+export OLLAMA_KEEP_ALIVE=5m
+
+# Keep for 1 hour
+export OLLAMA_KEEP_ALIVE=60m
+
+# Keep loaded indefinitely (until manual stop)
+export OLLAMA_KEEP_ALIVE=-1
+```
+
+**Stop Ollama Service Completely:**
+
+```bash
+# macOS
+launchctl stop com.ollama.ollama
+
+# Linux
+sudo systemctl stop ollama
+
+# Or kill the process (all platforms)
+pkill ollama
+```
+
+**Memory Management Best Practices:**
+
+1. **For Development**: Use `OLLAMA_KEEP_ALIVE=5m` (default) - balances convenience and memory
+2. **For Limited RAM**: Use `OLLAMA_KEEP_ALIVE=0` - unloads immediately after each request
+3. **For Production**: Use `OLLAMA_KEEP_ALIVE=60m` - keeps models warm for better response times
+4. **Check Memory Usage**: Run `ollama ps` regularly to see what's loaded
+5. **Unload When Done**: Run `ollama stop --all` when finished working
+
+**Example Workflow:**
+```bash
+# Start working
+ollama run llama2
+# ... do your work ...
+# Exit chat with /bye
+
+# Check what's still loaded
+ollama ps
+
+# Unload to free memory
+ollama stop llama2
+
+# Or unload everything
+ollama stop --all
 ```
 
 ### Interactive Chat Commands
@@ -1444,9 +1560,21 @@ Issue: Slow responses
 Issue: Out of memory
 → Use quantized model (q4_0)
 → Close other applications
+→ Stop unused models: ollama stop --all
+→ Set OLLAMA_KEEP_ALIVE=0 to unload immediately
+
+Issue: High memory usage
+→ Check loaded models: ollama ps
+→ Stop specific model: ollama stop <model-name>
+→ Configure auto-unload: export OLLAMA_KEEP_ALIVE=0
 
 Issue: Connection refused
 → Start Ollama server: ollama serve
+→ Check if service is running: ps aux | grep ollama
+
+Issue: Model won't unload
+→ Force stop: pkill ollama
+→ Restart service: ollama serve
 ```
 
 ### Learning Path
