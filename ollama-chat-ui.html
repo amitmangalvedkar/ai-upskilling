@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ollama Chat UI</title>
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <style>
         * {
             margin: 0;
@@ -26,8 +28,8 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             width: 100%;
-            max-width: 800px;
-            height: 90vh;
+            max-width: 1400px;
+            height: 95vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -161,20 +163,154 @@
         }
 
         .message.assistant .message-content pre {
-            background: #1e293b;
+            background: #2d2d2d;
             color: #e2e8f0;
-            padding: 12px;
+            padding: 16px;
             border-radius: 8px;
             overflow-x: auto;
-            margin: 8px 0;
+            margin: 16px 0;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .message.assistant .message-content pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.6;
         }
 
         .message.assistant .message-content code {
-            background: #f1f5f9;
-            padding: 2px 6px;
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
             border-radius: 4px;
-            font-family: 'Courier New', monospace;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
             font-size: 13px;
+            font-weight: 500;
+        }
+
+        .message.assistant .message-content p {
+            margin: 12px 0;
+            line-height: 1.7;
+        }
+
+        .message.assistant .message-content p:first-child {
+            margin-top: 0;
+        }
+
+        .message.assistant .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message.assistant .message-content ul,
+        .message.assistant .message-content ol {
+            margin: 16px 0;
+            padding-left: 28px;
+        }
+
+        .message.assistant .message-content li {
+            margin: 12px 0;
+            line-height: 1.7;
+            padding-left: 8px;
+        }
+
+        .message.assistant .message-content ul li {
+            list-style-type: disc;
+        }
+
+        .message.assistant .message-content ol li {
+            list-style-type: decimal;
+        }
+
+        .message.assistant .message-content li::marker {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .message.assistant .message-content h1,
+        .message.assistant .message-content h2,
+        .message.assistant .message-content h3 {
+            margin: 20px 0 12px 0;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .message.assistant .message-content h1 {
+            font-size: 22px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .message.assistant .message-content h2 {
+            font-size: 19px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+
+        .message.assistant .message-content h3 {
+            font-size: 17px;
+        }
+
+        .message.assistant .message-content strong {
+            font-weight: 700;
+            color: #0f172a;
+            background: linear-gradient(120deg, #fef3c7 0%, #fde68a 100%);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .message.assistant .message-content em {
+            font-style: italic;
+            color: #475569;
+        }
+
+        .message.assistant .message-content br {
+            display: block;
+            content: "";
+            margin: 6px 0;
+        }
+
+        .message.assistant .message-content a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .message.assistant .message-content a:hover {
+            border-bottom-color: #667eea;
+        }
+
+        .message.assistant .message-content img.message-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 16px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: block;
+            border: 2px solid #e2e8f0;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .message.assistant .message-content img.message-image:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            cursor: pointer;
+        }
+
+        /* Prism.js overrides for better syntax highlighting */
+        .message.assistant .message-content pre[class*="language-"] {
+            background: #2d2d2d;
+            margin: 16px 0;
+        }
+
+        .message.assistant .message-content code[class*="language-"] {
+            background: transparent;
+            color: #e2e8f0;
         }
 
         .typing-indicator {
@@ -419,6 +555,74 @@
             }, 5000);
         }
 
+        function formatMessage(content) {
+            // Escape HTML first
+            let formatted = escapeHtml(content);
+            
+            // Format images (markdown syntax: ![alt](url) or ![alt](url "title"))
+            formatted = formatted.replace(/!\[([^\]]*)\]\(([^)]+?)(?:\s+"([^"]*)")?\)/g, (match, alt, url, title) => {
+                const titleAttr = title ? ` title="${title}"` : '';
+                return `<img src="${url}" alt="${alt}"${titleAttr} class="message-image" />`;
+            });
+            
+            // Format direct image URLs (common image extensions)
+            formatted = formatted.replace(/https?:\/\/[^\s<]+?\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?[^\s<]*)?/gi, (match) => {
+                return `<img src="${match}" alt="Image" class="message-image" />`;
+            });
+            
+            // Format code blocks with language support
+            formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                const language = lang ? ` class="language-${lang}"` : '';
+                return `<pre><code${language}>${code.trim()}</code></pre>`;
+            });
+            
+            // Format inline code
+            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Format bold text
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+            
+            // Format italic text
+            formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            formatted = formatted.replace(/_([^_]+)_/g, '<em>$1</em>');
+            
+            // Format links (markdown syntax: [text](url))
+            formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+            
+            // Format headers
+            formatted = formatted.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            formatted = formatted.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            formatted = formatted.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            // Format unordered lists
+            formatted = formatted.replace(/^\* (.+)$/gm, '<li>$1</li>');
+            formatted = formatted.replace(/^- (.+)$/gm, '<li>$1</li>');
+            formatted = formatted.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+            
+            // Format ordered lists
+            formatted = formatted.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            
+            // Format paragraphs (double newline = new paragraph)
+            formatted = formatted.split('\n\n').map(para => {
+                para = para.trim();
+                // Don't wrap if it's already a block element
+                if (para.startsWith('<') && (
+                    para.startsWith('<h') ||
+                    para.startsWith('<ul') ||
+                    para.startsWith('<ol') ||
+                    para.startsWith('<pre') ||
+                    para.startsWith('<li') ||
+                    para.startsWith('<img')
+                )) {
+                    return para;
+                }
+                return para ? `<p>${para.replace(/\n/g, '<br>')}</p>` : '';
+            }).join('\n');
+            
+            return formatted;
+        }
+
         function addMessage(role, content) {
             // Remove welcome message if it exists
             const welcomeMsg = chatContainer.querySelector('.welcome-message');
@@ -436,12 +640,17 @@
             const messageContent = document.createElement('div');
             messageContent.className = 'message-content';
             
-            // Format code blocks
-            const formattedContent = content.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                return `<pre><code>${escapeHtml(code.trim())}</code></pre>`;
-            }).replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Format the content
+            messageContent.innerHTML = formatMessage(content);
             
-            messageContent.innerHTML = formattedContent;
+            // Apply syntax highlighting to code blocks
+            if (role === 'assistant') {
+                messageContent.querySelectorAll('pre code').forEach((block) => {
+                    if (typeof Prism !== 'undefined') {
+                        Prism.highlightElement(block);
+                    }
+                });
+            }
             
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(messageContent);
@@ -543,7 +752,13 @@
                             const json = JSON.parse(line);
                             if (json.message && json.message.content) {
                                 assistantMessage += json.message.content;
-                                messageContent.textContent = assistantMessage;
+                                messageContent.innerHTML = formatMessage(assistantMessage);
+                                // Apply syntax highlighting to code blocks
+                                messageContent.querySelectorAll('pre code').forEach((block) => {
+                                    if (typeof Prism !== 'undefined') {
+                                        Prism.highlightElement(block);
+                                    }
+                                });
                                 chatContainer.scrollTop = chatContainer.scrollHeight;
                             }
                         } catch (e) {
@@ -620,5 +835,22 @@
         // Check connection on load
         checkConnection();
     </script>
+    
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
 </body>
 </html>
